@@ -5,4 +5,4 @@ While I am still in the initial data collection and cleaning phase I have had th
 
 Below are visualizations I created for our study, showing the various data sources we are working with.
 
-![alt text](http://url/to/img.png)
+![Bangladesh Data Maps](https://github.com/hollowaypierce/Bangladesh_CA/blob/main/Images/Map_tiles.png)
