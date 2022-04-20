@@ -5,7 +5,7 @@ library(spdep)
 library(GGally)
 library(here)
 
-setwd("D:\\Masters Classes\\Spring_2022\\GEOG 803\\R_Scripts")
+# setwd("D:\\Masters Classes\\Spring_2022\\GEOG 803\\R_Scripts")
 here::i_am("02_Regression.R")
 
 mgrid <- st_read(here("source_data","MGrid_Clipped.shp"))
@@ -36,55 +36,69 @@ ggplot(data=sample_n(mgrid,10000),
 nb <- knn2nb(knearneigh(st_centroid(st_geometry(mgrid)), k = 5))
 listw <- nb2listw(nb)
 
-# NetLoss OLS model 
-summary(ols <- mgrid %>% 
-          st_drop_geometry() %>% 
-          select(-c(OID_, CA_NetLoss)) %>%
-          #mutate(across(-X19_03_sub_,~log10(.x+0.01))) %>% 
-          lm(data=.,X19_03_sub_  ~. ))
+# # 2019 -2003 OLS model
+# summary(ols <- mgrid %>% 
+#           st_drop_geometry() %>% 
+#           select(-c(OID_, CA_NetLoss)) %>%
+#           #mutate(across(-X19_03_sub_,~log10(.x+0.01))) %>% 
+#           lm(data=.,X19_03_sub_  ~. ))
 
 
-# 2019 -2003 OLS model
-summary(ols <- mgrid %>% 
-  st_drop_geometry() %>% 
+# NetLoss OLS model
+summary(ols <- mgrid %>%
+  st_drop_geometry() %>%
   select(-c(OID_,X19_03_sub_)) %>%
-  #mutate(across(-X19_03_sub_,~log10(.x+0.01))) %>% 
+  #mutate(across(-X19_03_sub_,~log10(.x+0.01))) %>%
   lm(data=.,CA_NetLoss ~. ))
 
-# export regression tables
-library(jtools)
-library(huxtable)
-library(officer)
-library(flextable)
-
-export_summs(ols,  scale = TRUE, to.file = "docx", file.name = "test.docx")
+# # export regression tables
+# library(jtools)
+# library(huxtable)
+# library(officer)
+# library(flextable)
+# 
+# export_summs(ols,  scale = TRUE, to.file = "docx", file.name = "test.docx")
 
 #Scatterplot matrix of (a sample of) the regression variables
 mgrid %>% 
   sample_n(2000) %>% 
   st_drop_geometry() %>% 
-  select(-c(OID_,CA_NetLoss)) %>% 
+  select(-c(OID_,X19_03_sub_)) %>% 
   ggpairs()
+
+
+#add country boundaries for plotting residuals
+library(mapdata)
+library(maps)
+library(ggspatial)
+
+country_bounds <- st_as_sf(raster::getData("GADM", country = "Bangladesh", level = 0))
 
 #plotting residuals
 mgrid$res <- residuals(ols)
-ggplot(data=mgrid)+
-  geom_sf(aes(fill=res),color=NA)+
-  theme_minimal()+
-  scale_fill_gradient2(low = "blue",mid="white", high = "red")
 
-#add country boundaries for plotting residuals
-library(rnaturalearth)
-library(rnaturalearthdata)
+ggplot() +
+  geom_sf(data = country_bounds, color = "black", fill = NA) +
+  geom_sf(data=mgrid, aes(fill=res),color=NA)+
+  theme_bw() +
+  scale_fill_gradient2(low = "blue",mid="white", high = "red") +
+    labs(fill = "Residuals") +
+    annotation_scale()
 
-world <- ne_countries(scale = "medium", returnclass = "sf")
+# testing for autocorrelation
 
-moran.test(mgrid$X19_03_sub_,listw=listw) #autocorrelation before regression
+moran.test(mgrid$CA_NetLoss,listw=listw) #autocorrelation before regression
+
 lm.morantest(ols,listw=listw) #autocorrelation AFTER regression
-lm.LMtests(ols,listw=listw) #indicates the use of a spatial lag model
+
+res <- lm.LMtests(ols,listw=listw, test= "all" ) #indicates the use of a spatial lag model
+summary(res)
 
 #spatial lag model
+library(spdep)
+library(spatialreg)
+
 sar_model <- mgrid%>% 
   st_drop_geometry() %>% 
-  select(-c(OID_,CA_NetLoss)) %>%
-  lagsarlm(data=., X19_03_sub_ ~., listw=listw)
+  dplyr::select(-c(OID_,X19_03_sub_)) %>%
+  lagsarlm(data=.,CA_NetLoss ~. , listw=listw)
