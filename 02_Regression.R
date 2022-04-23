@@ -34,6 +34,11 @@ ggplot(data=sample_n(mgrid,10000),
 
 #defining spatial neighbors (5 NEAREST neighbors) - can't do contiguity because of islands
 nb <- knn2nb(knearneigh(st_centroid(st_geometry(mgrid)), k = 5))
+
+# nb <- knn2nb(knearneigh(st_centroid(st_geometry(mgrid)), k = 5), sym=T)
+# listw <- nb2listw(nb, style="W")
+
+
 listw <- nb2listw(nb)
 
 # # 2019 -2003 OLS model
